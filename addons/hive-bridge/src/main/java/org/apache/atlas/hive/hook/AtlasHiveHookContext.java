@@ -18,10 +18,10 @@
 
 package org.apache.atlas.hive.hook;
 
-import org.apache.atlas.model.instance.AtlasEntity;
-import org.apache.atlas.hive.hook.HiveMetastoreHookImpl.HiveMetastoreHook;
-import org.apache.atlas.hive.hook.HiveHook.PreprocessAction;
 import org.apache.atlas.hive.hook.HiveHook.HiveHookObjectNamesCache;
+import org.apache.atlas.hive.hook.HiveHook.PreprocessAction;
+import org.apache.atlas.hive.hook.HiveMetastoreHookImpl.HiveMetastoreHook;
+import org.apache.atlas.model.instance.AtlasEntity;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.hadoop.hive.metastore.IHMSHandler;
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -39,26 +39,33 @@ import static org.apache.atlas.hive.hook.events.BaseHiveEvent.toTable;
 
 
 public class AtlasHiveHookContext {
-    public static final char   QNAME_SEP_METADATA_NAMESPACE = '@';
-    public static final char   QNAME_SEP_ENTITY_NAME        = '.';
-    public static final char   QNAME_SEP_PROCESS            = ':';
-    public static final String TEMP_TABLE_PREFIX            = "_temp-";
-    public static final String CREATE_OPERATION             = "CREATE";
-    public static final String ALTER_OPERATION              = "ALTER";
+    public static final char QNAME_SEP_METADATA_NAMESPACE = '@';
+    public static final char QNAME_SEP_ENTITY_NAME = '.';
+    public static final char QNAME_SEP_PROCESS = ':';
+    public static final String TEMP_TABLE_PREFIX = "_temp-";
+    public static final String CREATE_OPERATION = "CREATE";
+    public static final String ALTER_OPERATION = "ALTER";
 
-    private final HiveHook                 hook;
-    private final HiveOperation            hiveOperation;
-    private final HookContext              hiveContext;
-    private final Hive                     hive;
+    private final HiveHook hook;
+    private final HiveOperation hiveOperation;
+    private final HookContext hiveContext;
+    private final Hive hive;
     private final Map<String, AtlasEntity> qNameEntityMap = new HashMap<>();
     private final HiveHookObjectNamesCache knownObjects;
-    private final HiveMetastoreHook        metastoreHook;
-    private final ListenerEvent            metastoreEvent;
-    private final IHMSHandler              metastoreHandler;
+    private final HiveMetastoreHook metastoreHook;
+    private final ListenerEvent metastoreEvent;
+    private final IHMSHandler metastoreHandler;
 
     private boolean isSkippedInputEntity;
     private boolean isSkippedOutputEntity;
 
+    /**
+     * @param hook
+     * @param hiveOperation
+     * @param hiveContext
+     * @param knownObjects
+     * @throws Exception
+     */
     public AtlasHiveHookContext(HiveHook hook, HiveOperation hiveOperation, HookContext hiveContext,
                                 HiveHookObjectNamesCache knownObjects) throws Exception {
         this(hook, hiveOperation, hiveContext, knownObjects, null, null);
@@ -69,20 +76,34 @@ public class AtlasHiveHookContext {
         this(hook, hiveOperation, null, knownObjects, metastoreHook, listenerEvent);
     }
 
+    /**
+     * @param hook
+     * @param hiveOperation
+     * @param hiveContext
+     * @param knownObjects
+     * @param metastoreHook
+     * @param listenerEvent
+     * @throws Exception
+     */
     public AtlasHiveHookContext(HiveHook hook, HiveOperation hiveOperation, HookContext hiveContext, HiveHookObjectNamesCache knownObjects,
                                 HiveMetastoreHook metastoreHook, ListenerEvent listenerEvent) throws Exception {
-        this.hook             = hook;
-        this.hiveOperation    = hiveOperation;
-        this.hiveContext      = hiveContext;
-        this.hive             = hiveContext != null ? Hive.get(hiveContext.getConf()) : null;
-        this.knownObjects     = knownObjects;
-        this.metastoreHook    = metastoreHook;
-        this.metastoreEvent   = listenerEvent;
+        this.hook = hook;
+        this.hiveOperation = hiveOperation;
+        this.hiveContext = hiveContext;
+        this.hive = hiveContext != null ? Hive.get(hiveContext.getConf()) : null;
+        this.knownObjects = knownObjects;
+        this.metastoreHook = metastoreHook;
+        this.metastoreEvent = listenerEvent;
         this.metastoreHandler = (listenerEvent != null) ? metastoreEvent.getIHMSHandler() : null;
 
         init();
     }
 
+    /**
+     * metastoreHook 是否为空
+     *
+     * @return
+     */
     public boolean isMetastoreHook() {
         return metastoreHook != null;
     }
@@ -155,15 +176,21 @@ public class AtlasHiveHookContext {
         return qNameEntityMap.get(qualifiedName);
     }
 
-    public Collection<AtlasEntity> getEntities() { return qNameEntityMap.values(); }
+    public Collection<AtlasEntity> getEntities() {
+        return qNameEntityMap.values();
+    }
 
-    public Map<String, AtlasEntity> getQNameToEntityMap() { return qNameEntityMap; }
+    public Map<String, AtlasEntity> getQNameToEntityMap() {
+        return qNameEntityMap;
+    }
 
     public String getMetadataNamespace() {
         return hook.getMetadataNamespace();
     }
 
-    public String getHostName() { return hook.getHostName(); }
+    public String getHostName() {
+        return hook.getHostName();
+    }
 
     public boolean isConvertHdfsPathToLowerCase() {
         return hook.isConvertHdfsPathToLowerCase();
@@ -189,11 +216,11 @@ public class AtlasHiveHookContext {
         return hook.getIgnoreDummyDatabaseName();
     }
 
-    public  List getIgnoreDummyTableName() {
+    public List getIgnoreDummyTableName() {
         return hook.getIgnoreDummyTableName();
     }
 
-    public  String getIgnoreValuesTmpTableNamePrefix() {
+    public String getIgnoreValuesTmpTableNamePrefix() {
         return hook.getIgnoreValuesTmpTableNamePrefix();
     }
 
@@ -245,6 +272,9 @@ public class AtlasHiveHookContext {
         return hook.isHiveProcessPopulateDeprecatedAttributes();
     }
 
+    /**
+     * 初始化
+     */
     private void init() {
         String operation = hiveOperation.getOperationName();
 
@@ -253,7 +283,7 @@ public class AtlasHiveHookContext {
         }
 
         List<Database> databases = new ArrayList<>();
-        List<Table>    tables    = new ArrayList<>();
+        List<Table> tables = new ArrayList<>();
 
         if (isMetastoreHook()) {
             switch (hiveOperation) {
@@ -298,6 +328,12 @@ public class AtlasHiveHookContext {
         }
     }
 
+    /**
+     * 是否为 创建或修改操作
+     *
+     * @param operationName
+     * @return
+     */
     private static boolean isCreateAlterOperation(String operationName) {
         return operationName != null && operationName.startsWith(CREATE_OPERATION) || operationName.startsWith(ALTER_OPERATION);
     }

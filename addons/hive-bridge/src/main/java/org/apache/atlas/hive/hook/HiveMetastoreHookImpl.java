@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,21 +32,20 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import static org.apache.atlas.hive.hook.events.AlterTableRenameCol.findRenamedColumn;
 import static org.apache.atlas.hive.hook.events.BaseHiveEvent.toTable;
 import static org.apache.hadoop.hive.ql.plan.HiveOperation.*;
 
 public class HiveMetastoreHookImpl extends MetaStoreEventListener {
-    private static final Logger            LOG = LoggerFactory.getLogger(HiveMetastoreHookImpl.class);
-    private        final HiveHook          hiveHook;
-    private        final HiveMetastoreHook hook;
+    private static final Logger LOG = LoggerFactory.getLogger(HiveMetastoreHookImpl.class);
+    private final HiveHook hiveHook;
+    private final HiveMetastoreHook hook;
 
     public HiveMetastoreHookImpl(Configuration config) {
         super(config);
 
         this.hiveHook = new HiveHook();
-        this.hook     = new HiveMetastoreHook();
+        this.hook = new HiveMetastoreHook();
     }
 
     @Override
@@ -87,14 +86,14 @@ public class HiveMetastoreHookImpl extends MetaStoreEventListener {
     @Override
     public void onAlterTable(AlterTableEvent tableEvent) {
         HiveOperationContext context = new HiveOperationContext(tableEvent);
-        Table                oldTable = toTable(tableEvent.getOldTable());
-        Table                newTable = toTable(tableEvent.getNewTable());
+        Table oldTable = toTable(tableEvent.getOldTable());
+        Table newTable = toTable(tableEvent.getNewTable());
 
         if (isTableRename(oldTable, newTable)) {
             context.setOperation(ALTERTABLE_RENAME);
         } else if (isColumnRename(oldTable, newTable, context)) {
             context.setOperation(ALTERTABLE_RENAMECOL);
-        } else if(isAlterTableProperty(tableEvent, "last_modified_time") ||
+        } else if (isAlterTableProperty(tableEvent, "last_modified_time") ||
                 isAlterTableProperty(tableEvent, "transient_lastDdlTime")) {
             context.setOperation(ALTERTABLE_PROPERTIES); // map other alter table operations to ALTERTABLE_PROPERTIES
         }
@@ -102,6 +101,9 @@ public class HiveMetastoreHookImpl extends MetaStoreEventListener {
         hook.handleEvent(context);
     }
 
+    /**
+     *
+     */
     public class HiveMetastoreHook extends AtlasHook {
         public HiveMetastoreHook() {
         }
@@ -114,9 +116,9 @@ public class HiveMetastoreHookImpl extends MetaStoreEventListener {
             }
 
             try {
-                HiveOperation        oper    = operContext.getOperation();
+                HiveOperation oper = operContext.getOperation();
                 AtlasHiveHookContext context = new AtlasHiveHookContext(hiveHook, oper, hiveHook.getKnownObjects(), this, listenerEvent);
-                BaseHiveEvent        event   = null;
+                BaseHiveEvent event = null;
 
                 switch (oper) {
                     case CREATEDATABASE:
@@ -180,9 +182,9 @@ public class HiveMetastoreHookImpl extends MetaStoreEventListener {
     }
 
     private static boolean isColumnRename(Table oldTable, Table newTable, HiveOperationContext context) {
-        FieldSchema columnOld      = findRenamedColumn(oldTable, newTable);
-        FieldSchema columnNew      = findRenamedColumn(newTable, oldTable);
-        boolean     isColumnRename = columnOld != null && columnNew != null;
+        FieldSchema columnOld = findRenamedColumn(oldTable, newTable);
+        FieldSchema columnNew = findRenamedColumn(newTable, oldTable);
+        boolean isColumnRename = columnOld != null && columnNew != null;
 
         if (isColumnRename) {
             context.setColumnOld(columnOld);
@@ -194,8 +196,8 @@ public class HiveMetastoreHookImpl extends MetaStoreEventListener {
 
     private boolean isAlterTableProperty(AlterTableEvent tableEvent, String propertyToCheck) {
         final boolean ret;
-        String        oldTableModifiedTime = tableEvent.getOldTable().getParameters().get(propertyToCheck);
-        String        newTableModifiedTime = tableEvent.getNewTable().getParameters().get(propertyToCheck);
+        String oldTableModifiedTime = tableEvent.getOldTable().getParameters().get(propertyToCheck);
+        String newTableModifiedTime = tableEvent.getNewTable().getParameters().get(propertyToCheck);
 
 
         if (oldTableModifiedTime == null) {

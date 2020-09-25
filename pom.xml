@@ -2110,7 +2110,7 @@
 
                         <!-- atlas data directory creates when tests are run from IDE -->
                         <exclude>**/atlas.data/**</exclude>
-                        <exclude>**/${sys:atlas.data}/**</exclude>
+                       <!-- <exclude>**/${sys:atlas.data}/**</exclude>-->
                         <exclude>**/policy-store.txt</exclude>
                         <exclude>**/*rebel*.xml</exclude>
                         <exclude>**/*rebel*.xml.bak</exclude>
@@ -2252,9 +2252,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
-                <configuration>
+                <!--<configuration>
                     <deployAtEnd>true</deployAtEnd>
-                </configuration>
+                </configuration>-->
             </plugin>
 
             <plugin>

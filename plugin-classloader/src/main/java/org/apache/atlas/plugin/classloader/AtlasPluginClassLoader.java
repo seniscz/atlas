@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -44,31 +44,47 @@ public final class AtlasPluginClassLoader extends URLClassLoader {
     private final MyClassLoader componentClassLoader;
 
     private AtlasPluginClassLoader(String pluginType, Class<?> pluginClass) throws URISyntaxException {
+        //调用下面的构造方法
         this(AtlasPluginClassLoaderUtil.getPluginImplLibPath(pluginType, pluginClass));
     }
 
-    //visible for testing
+    /**
+     * visible for testing
+     *
+     * @param libraryPath
+     */
     AtlasPluginClassLoader(String libraryPath) {
+        // 调用父类 URLClassLoader 的构造方法
         super(AtlasPluginClassLoaderUtil.getFilesInDirectories(new String[]{libraryPath}), null);
-
         componentClassLoader = AccessController.doPrivileged(new PrivilegedAction<MyClassLoader>() {
+            @Override
             public MyClassLoader run() {
+                //获得当前运行线程的对象
                 return new MyClassLoader(Thread.currentThread().getContextClassLoader());
             }
         });
     }
 
+    /**
+     * 获取类的对象实例
+     *
+     * @param pluginType
+     * @param pluginClass
+     * @return
+     * @throws PrivilegedActionException
+     */
     public static AtlasPluginClassLoader getInstance(final String pluginType, final Class<?> pluginClass) throws PrivilegedActionException {
         AtlasPluginClassLoader ret = me;
         if (ret == null) {
             synchronized (AtlasPluginClassLoader.class) {
                 ret = me;
                 if (ret == null) {
-					me = AccessController.doPrivileged(new PrivilegedExceptionAction<AtlasPluginClassLoader>() {
-					    public AtlasPluginClassLoader run() throws URISyntaxException {
-					        return new AtlasPluginClassLoader(pluginType, pluginClass);
-					    }
-					});
+                    me = AccessController.doPrivileged(new PrivilegedExceptionAction<AtlasPluginClassLoader>() {
+                        @Override
+                        public AtlasPluginClassLoader run() throws URISyntaxException {
+                            return new AtlasPluginClassLoader(pluginType, pluginClass);
+                        }
+                    });
                     ret = me;
                 }
             }
@@ -331,14 +347,23 @@ public final class AtlasPluginClassLoader extends URLClassLoader {
         }
     }
 
+
     static class MyClassLoader extends ClassLoader {
         public MyClassLoader(ClassLoader realClassLoader) {
             super(realClassLoader);
         }
 
+        /**
+         * 查找名称为 name 的已经被加载过的类，返回的结果是该类的实例
+         *
+         * @param name
+         * @return
+         * @throws ClassNotFoundException
+         */
         @Override
-        public Class<?> findClass(String name) throws ClassNotFoundException { //NOPMD
+        public Class<?> findClass(String name) throws ClassNotFoundException {
             return super.findClass(name);
         }
     }
+
 }

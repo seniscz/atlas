@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -39,8 +39,15 @@ final class AtlasPluginClassLoaderUtil {
 
     private static final String ATLAS_PLUGIN_LIBDIR = "atlas-%-plugin-impl";
 
-    private AtlasPluginClassLoaderUtil(){ }
+    private AtlasPluginClassLoaderUtil() {
+    }
 
+    /**
+     * 获取该路径下的所有文件的url
+     *
+     * @param libDirs
+     * @return
+     */
     public static URL[] getFilesInDirectories(String[] libDirs) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> AtlasPluginClassLoaderUtil.getFilesInDirectories()");
@@ -59,6 +66,12 @@ final class AtlasPluginClassLoaderUtil {
         return ret.toArray(new URL[]{});
     }
 
+    /**
+     * 获得文件路径
+     *
+     * @param dirPath
+     * @param files
+     */
     private static void getFilesInDirectory(String dirPath, List<URL> files) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> AtlasPluginClassLoaderUtil.getPluginFiles()");
@@ -66,17 +79,17 @@ final class AtlasPluginClassLoaderUtil {
 
         if (dirPath != null) {
             try {
+                // 返回某个目录下所有文件和目录的绝对路径，返回的是File数组
                 File[] dirFiles = new File(dirPath).listFiles();
 
                 if (dirFiles != null) {
                     for (File dirFile : dirFiles) {
                         try {
                             URL jarPath = dirFile.toURI().toURL();
-
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("getFilesInDirectory('{}'): adding {}", dirPath, dirFile.getAbsolutePath());
                             }
-
+                            //将文件url 加入到集合中
                             files.add(jarPath);
                         } catch (Exception excp) {
                             LOG.warn("getFilesInDirectory('{}'): failed to get URI for file {}", dirPath, dirFile
@@ -96,19 +109,26 @@ final class AtlasPluginClassLoaderUtil {
         }
     }
 
+    /**
+     * 获得该插件的路径
+     *
+     * @param pluginType
+     * @param pluginClass
+     * @return
+     * @throws URISyntaxException
+     */
     public static String getPluginImplLibPath(String pluginType, Class<?> pluginClass) throws URISyntaxException {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> AtlasPluginClassLoaderUtil.getPluginImplLibPath for Class ({})", pluginClass.getName());
         }
-
+        //获取该类的RUI
         URI uri = pluginClass.getProtectionDomain().getCodeSource().getLocation().toURI();
         Path path = Paths.get(URI.create(uri.toString()));
         String ret = path.getParent().toString() + File.separatorChar + ATLAS_PLUGIN_LIBDIR.replaceAll("%", pluginType);
-
         if (LOG.isDebugEnabled()) {
             LOG.debug("<== AtlasPluginClassLoaderUtil.getPluginImplLibPath for Class {}): {})", pluginClass.getName(), ret);
         }
-
         return ret;
     }
+
 }

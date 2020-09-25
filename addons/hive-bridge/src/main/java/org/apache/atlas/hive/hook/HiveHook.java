@@ -35,59 +35,52 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 
-import static org.apache.atlas.hive.hook.events.BaseHiveEvent.ATTRIBUTE_QUALIFIED_NAME;
-import static org.apache.atlas.hive.hook.events.BaseHiveEvent.HIVE_TYPE_DB;
-import static org.apache.atlas.hive.hook.events.BaseHiveEvent.HIVE_TYPE_TABLE;
+import static org.apache.atlas.hive.hook.events.BaseHiveEvent.*;
 
 public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
     private static final Logger LOG = LoggerFactory.getLogger(HiveHook.class);
 
-    public enum PreprocessAction { NONE, IGNORE, PRUNE }
+    public enum PreprocessAction {NONE, IGNORE, PRUNE}
 
-    public static final String CONF_PREFIX                         = "atlas.hook.hive.";
-    public static final String HDFS_PATH_CONVERT_TO_LOWER_CASE     = CONF_PREFIX + "hdfs_path.convert_to_lowercase";
-    public static final String HOOK_NAME_CACHE_ENABLED             = CONF_PREFIX + "name.cache.enabled";
-    public static final String HOOK_NAME_CACHE_DATABASE_COUNT      = CONF_PREFIX + "name.cache.database.count";
-    public static final String HOOK_NAME_CACHE_TABLE_COUNT         = CONF_PREFIX + "name.cache.table.count";
+    public static final String CONF_PREFIX = "atlas.hook.hive.";
+    public static final String HDFS_PATH_CONVERT_TO_LOWER_CASE = CONF_PREFIX + "hdfs_path.convert_to_lowercase";
+    public static final String HOOK_NAME_CACHE_ENABLED = CONF_PREFIX + "name.cache.enabled";
+    public static final String HOOK_NAME_CACHE_DATABASE_COUNT = CONF_PREFIX + "name.cache.database.count";
+    public static final String HOOK_NAME_CACHE_TABLE_COUNT = CONF_PREFIX + "name.cache.table.count";
     public static final String HOOK_NAME_CACHE_REBUID_INTERVAL_SEC = CONF_PREFIX + "name.cache.rebuild.interval.seconds";
-    public static final String HOOK_AWS_S3_ATLAS_MODEL_VERSION     = CONF_PREFIX + "aws_s3.atlas.model.version";
-    public static final String HOOK_AWS_S3_ATLAS_MODEL_VERSION_V2  = "v2";
-    public static final String HOOK_HIVE_PROCESS_POPULATE_DEPRECATED_ATTRIBUTES          = CONF_PREFIX + "hive_process.populate.deprecated.attributes";
-    public static final String HOOK_SKIP_HIVE_COLUMN_LINEAGE_HIVE_20633                  = CONF_PREFIX + "skip.hive_column_lineage.hive-20633";
+    public static final String HOOK_AWS_S3_ATLAS_MODEL_VERSION = CONF_PREFIX + "aws_s3.atlas.model.version";
+    public static final String HOOK_AWS_S3_ATLAS_MODEL_VERSION_V2 = "v2";
+    public static final String HOOK_HIVE_PROCESS_POPULATE_DEPRECATED_ATTRIBUTES = CONF_PREFIX + "hive_process.populate.deprecated.attributes";
+    public static final String HOOK_SKIP_HIVE_COLUMN_LINEAGE_HIVE_20633 = CONF_PREFIX + "skip.hive_column_lineage.hive-20633";
     public static final String HOOK_SKIP_HIVE_COLUMN_LINEAGE_HIVE_20633_INPUTS_THRESHOLD = CONF_PREFIX + "skip.hive_column_lineage.hive-20633.inputs.threshold";
-    public static final String HOOK_HIVE_TABLE_IGNORE_PATTERN                            = CONF_PREFIX + "hive_table.ignore.pattern";
-    public static final String HOOK_HIVE_TABLE_PRUNE_PATTERN                             = CONF_PREFIX + "hive_table.prune.pattern";
-    public static final String HOOK_HIVE_TABLE_CACHE_SIZE                                = CONF_PREFIX + "hive_table.cache.size";
+    public static final String HOOK_HIVE_TABLE_IGNORE_PATTERN = CONF_PREFIX + "hive_table.ignore.pattern";
+    public static final String HOOK_HIVE_TABLE_PRUNE_PATTERN = CONF_PREFIX + "hive_table.prune.pattern";
+    public static final String HOOK_HIVE_TABLE_CACHE_SIZE = CONF_PREFIX + "hive_table.cache.size";
     public static final String DEFAULT_HOST_NAME = "localhost";
-
+    /**
+     * key 为operationName ，value 为operation的值
+     */
     private static final Map<String, HiveOperation> OPERATION_MAP = new HashMap<>();
 
     private static final boolean convertHdfsPathToLowerCase;
     private static final boolean nameCacheEnabled;
-    private static final int     nameCacheDatabaseMaxCount;
-    private static final int     nameCacheTableMaxCount;
-    private static final int     nameCacheRebuildIntervalSeconds;
-    private static final String  awsS3AtlasModelVersion;
+    private static final int nameCacheDatabaseMaxCount;
+    private static final int nameCacheTableMaxCount;
+    private static final int nameCacheRebuildIntervalSeconds;
+    private static final String awsS3AtlasModelVersion;
 
-    private static final boolean                       skipHiveColumnLineageHive20633;
-    private static final int                           skipHiveColumnLineageHive20633InputsThreshold;
-    private static final List<Pattern>                 hiveTablesToIgnore = new ArrayList<>();
-    private static final List<Pattern>                 hiveTablesToPrune  = new ArrayList<>();
+    private static final boolean skipHiveColumnLineageHive20633;
+    private static final int skipHiveColumnLineageHive20633InputsThreshold;
+    private static final List<Pattern> hiveTablesToIgnore = new ArrayList<>();
+    private static final List<Pattern> hiveTablesToPrune = new ArrayList<>();
     private static final Map<String, PreprocessAction> hiveTablesCache;
-    private static final List                          ignoreDummyDatabaseName;
-    private static final List                          ignoreDummyTableName;
-    private static final String                        ignoreValuesTmpTableNamePrefix;
-    private static final boolean                       hiveProcessPopulateDeprecatedAttributes;
+    private static final List ignoreDummyDatabaseName;
+    private static final List ignoreDummyTableName;
+    private static final String ignoreValuesTmpTableNamePrefix;
+    private static final boolean hiveProcessPopulateDeprecatedAttributes;
     private static HiveHookObjectNamesCache knownObjects = null;
     private static String hostName;
 
@@ -96,17 +89,19 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
             OPERATION_MAP.put(hiveOperation.getOperationName(), hiveOperation);
         }
 
-        convertHdfsPathToLowerCase      = atlasProperties.getBoolean(HDFS_PATH_CONVERT_TO_LOWER_CASE, false);
-        nameCacheEnabled                = atlasProperties.getBoolean(HOOK_NAME_CACHE_ENABLED, true);
-        nameCacheDatabaseMaxCount       = atlasProperties.getInt(HOOK_NAME_CACHE_DATABASE_COUNT, 10000);
-        nameCacheTableMaxCount          = atlasProperties.getInt(HOOK_NAME_CACHE_TABLE_COUNT, 10000);
-        nameCacheRebuildIntervalSeconds = atlasProperties.getInt(HOOK_NAME_CACHE_REBUID_INTERVAL_SEC, 60 * 60); // 60 minutes default
-        awsS3AtlasModelVersion          = atlasProperties.getString(HOOK_AWS_S3_ATLAS_MODEL_VERSION, HOOK_AWS_S3_ATLAS_MODEL_VERSION_V2);
-        skipHiveColumnLineageHive20633                = atlasProperties.getBoolean(HOOK_SKIP_HIVE_COLUMN_LINEAGE_HIVE_20633, false);
-        skipHiveColumnLineageHive20633InputsThreshold = atlasProperties.getInt(HOOK_SKIP_HIVE_COLUMN_LINEAGE_HIVE_20633_INPUTS_THRESHOLD, 15); // skip if avg # of inputs is > 15
-        hiveProcessPopulateDeprecatedAttributes       = atlasProperties.getBoolean(HOOK_HIVE_PROCESS_POPULATE_DEPRECATED_ATTRIBUTES, false);
+        convertHdfsPathToLowerCase = atlasProperties.getBoolean(HDFS_PATH_CONVERT_TO_LOWER_CASE, false);
+        nameCacheEnabled = atlasProperties.getBoolean(HOOK_NAME_CACHE_ENABLED, true);
+        nameCacheDatabaseMaxCount = atlasProperties.getInt(HOOK_NAME_CACHE_DATABASE_COUNT, 10000);
+        nameCacheTableMaxCount = atlasProperties.getInt(HOOK_NAME_CACHE_TABLE_COUNT, 10000);
+        // 60 minutes default
+        nameCacheRebuildIntervalSeconds = atlasProperties.getInt(HOOK_NAME_CACHE_REBUID_INTERVAL_SEC, 60 * 60);
+        awsS3AtlasModelVersion = atlasProperties.getString(HOOK_AWS_S3_ATLAS_MODEL_VERSION, HOOK_AWS_S3_ATLAS_MODEL_VERSION_V2);
+        skipHiveColumnLineageHive20633 = atlasProperties.getBoolean(HOOK_SKIP_HIVE_COLUMN_LINEAGE_HIVE_20633, false);
+        // skip if avg # of inputs is > 15
+        skipHiveColumnLineageHive20633InputsThreshold = atlasProperties.getInt(HOOK_SKIP_HIVE_COLUMN_LINEAGE_HIVE_20633_INPUTS_THRESHOLD, 15);
+        hiveProcessPopulateDeprecatedAttributes = atlasProperties.getBoolean(HOOK_HIVE_PROCESS_POPULATE_DEPRECATED_ATTRIBUTES, false);
         String[] patternHiveTablesToIgnore = atlasProperties.getStringArray(HOOK_HIVE_TABLE_IGNORE_PATTERN);
-        String[] patternHiveTablesToPrune  = atlasProperties.getStringArray(HOOK_HIVE_TABLE_PRUNE_PATTERN);
+        String[] patternHiveTablesToPrune = atlasProperties.getStringArray(HOOK_HIVE_TABLE_PRUNE_PATTERN);
 
         if (patternHiveTablesToIgnore != null) {
             for (String pattern : patternHiveTablesToIgnore) {
@@ -143,13 +138,13 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
         knownObjects = nameCacheEnabled ? new HiveHookObjectNamesCache(nameCacheDatabaseMaxCount, nameCacheTableMaxCount, nameCacheRebuildIntervalSeconds) : null;
 
         List<String> defaultDummyDatabase = new ArrayList<>();
-        List<String> defaultDummyTable    = new ArrayList<>();
+        List<String> defaultDummyTable = new ArrayList<>();
 
         defaultDummyDatabase.add(SemanticAnalyzer.DUMMY_DATABASE);
         defaultDummyTable.add(SemanticAnalyzer.DUMMY_TABLE);
 
-        ignoreDummyDatabaseName        = atlasProperties.getList("atlas.hook.hive.ignore.dummy.database.name", defaultDummyDatabase);
-        ignoreDummyTableName           = atlasProperties.getList("atlas.hook.hive.ignore.dummy.table.name", defaultDummyTable);
+        ignoreDummyDatabaseName = atlasProperties.getList("atlas.hook.hive.ignore.dummy.database.name", defaultDummyDatabase);
+        ignoreDummyTableName = atlasProperties.getList("atlas.hook.hive.ignore.dummy.table.name", defaultDummyTable);
         ignoreValuesTmpTableNamePrefix = atlasProperties.getString("atlas.hook.hive.ignore.values.tmp.table.name.prefix", "Values__Tmp__Table__");
 
         try {
@@ -171,33 +166,35 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
         }
 
         try {
-            HiveOperation        oper    = OPERATION_MAP.get(hookContext.getOperationName());
+            //获得operation的值
+            HiveOperation oper = OPERATION_MAP.get(hookContext.getOperationName());
+            //获得 hive hook 的上下文
             AtlasHiveHookContext context = new AtlasHiveHookContext(this, oper, hookContext, getKnownObjects());
-            BaseHiveEvent        event   = null;
+            BaseHiveEvent event = null;
 
             switch (oper) {
                 case CREATEDATABASE:
                     event = new CreateDatabase(context);
-                break;
+                    break;
 
                 case DROPDATABASE:
                     event = new DropDatabase(context);
-                break;
+                    break;
 
                 case ALTERDATABASE:
                 case ALTERDATABASE_OWNER:
                 case ALTERDATABASE_LOCATION:
                     event = new AlterDatabase(context);
-                break;
+                    break;
 
                 case CREATETABLE:
                     event = new CreateTable(context, true);
-                break;
+                    break;
 
                 case DROPTABLE:
                 case DROPVIEW:
                     event = new DropTable(context);
-                break;
+                    break;
 
                 case CREATETABLE_AS_SELECT:
                 case CREATEVIEW:
@@ -207,7 +204,7 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
                 case IMPORT:
                 case QUERY:
                     event = new CreateHiveProcess(context, true);
-                break;
+                    break;
 
                 case ALTERTABLE_FILEFORMAT:
                 case ALTERTABLE_CLUSTER_SORT:
@@ -221,22 +218,22 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
                 case ALTERTABLE_PARTCOLTYPE:
                 case ALTERTABLE_LOCATION:
                     event = new AlterTable(context);
-                break;
+                    break;
 
                 case ALTERTABLE_RENAME:
                 case ALTERVIEW_RENAME:
                     event = new AlterTableRename(context);
-                break;
+                    break;
 
                 case ALTERTABLE_RENAMECOL:
                     event = new AlterTableRenameCol(context);
-                break;
+                    break;
 
                 default:
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("HiveHook.run({}): operation ignored", hookContext.getOperationName());
                     }
-                break;
+                    break;
             }
 
             if (event != null) {
@@ -269,15 +266,15 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
         return skipHiveColumnLineageHive20633InputsThreshold;
     }
 
-    public  List getIgnoreDummyDatabaseName() {
+    public List getIgnoreDummyDatabaseName() {
         return ignoreDummyDatabaseName;
     }
 
-    public  List getIgnoreDummyTableName() {
+    public List getIgnoreDummyTableName() {
         return ignoreDummyTableName;
     }
 
-    public  String getIgnoreValuesTmpTableNamePrefix() {
+    public String getIgnoreValuesTmpTableNamePrefix() {
         return ignoreValuesTmpTableNamePrefix;
     }
 
@@ -321,9 +318,16 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
         return ret;
     }
 
+
+    /**
+     * 获取 Hive Object Names
+     *
+     * @return
+     */
     public static HiveHookObjectNamesCache getKnownObjects() {
         if (knownObjects != null && knownObjects.isCacheExpired()) {
-            LOG.info("HiveHook.run(): purging cached databaseNames ({}) and tableNames ({})", knownObjects.getCachedDbCount(), knownObjects.getCachedTableCount());
+            LOG.info("HiveHook.run(): purging cached databaseNames ({}) and tableNames ({})",
+                    knownObjects.getCachedDbCount(), knownObjects.getCachedTableCount());
 
             knownObjects = new HiveHook.HiveHookObjectNamesCache(nameCacheDatabaseMaxCount, nameCacheTableMaxCount, nameCacheRebuildIntervalSeconds);
         }
@@ -335,19 +339,43 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
         return hostName;
     }
 
+    /**
+     * 内部类
+     */
     public static class HiveHookObjectNamesCache {
-        private final int         dbMaxCacheCount;
-        private final int         tblMaxCacheCount;
-        private final long        cacheExpiryTimeMs;
+        /**
+         * db 的数量
+         */
+        private final int dbMaxCacheCount;
+        /**
+         * table 的数量
+         */
+        private final int tblMaxCacheCount;
+        /**
+         * 缓存的时间
+         */
+        private final long cacheExpiryTimeMs;
+        /**
+         * 已经存在的 db
+         */
         private final Set<String> knownDatabases;
+        /**
+         * 已经存在的table
+         */
         private final Set<String> knownTables;
 
+        /**
+         * @param dbMaxCacheCount
+         * @param tblMaxCacheCount
+         * @param nameCacheRebuildIntervalSeconds 缓存重建间隔
+         */
         public HiveHookObjectNamesCache(int dbMaxCacheCount, int tblMaxCacheCount, long nameCacheRebuildIntervalSeconds) {
-            this.dbMaxCacheCount   = dbMaxCacheCount;
-            this.tblMaxCacheCount  = tblMaxCacheCount;
+            this.dbMaxCacheCount = dbMaxCacheCount;
+            this.tblMaxCacheCount = tblMaxCacheCount;
             this.cacheExpiryTimeMs = nameCacheRebuildIntervalSeconds <= 0 ? Long.MAX_VALUE : (System.currentTimeMillis() + (nameCacheRebuildIntervalSeconds * 1000));
-            this.knownDatabases    = Collections.synchronizedSet(new HashSet<>());
-            this.knownTables       = Collections.synchronizedSet(new HashSet<>());
+            //对象加锁
+            this.knownDatabases = Collections.synchronizedSet(new HashSet<>());
+            this.knownTables = Collections.synchronizedSet(new HashSet<>());
         }
 
         public int getCachedDbCount() {
@@ -358,10 +386,21 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
             return knownTables.size();
         }
 
+        /**
+         * 缓存是否过期
+         *
+         * @return
+         */
         public boolean isCacheExpired() {
             return System.currentTimeMillis() > cacheExpiryTimeMs;
         }
 
+        /**
+         * 该库是否已经存在
+         *
+         * @param dbQualifiedName
+         * @return
+         */
         public boolean isKnownDatabase(String dbQualifiedName) {
             return knownDatabases.contains(dbQualifiedName);
         }
@@ -392,10 +431,20 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
             }
         }
 
+        /**
+         * 删除该 db
+         *
+         * @param dbQualifiedName
+         */
         public void removeFromKnownDatabase(String dbQualifiedName) {
             knownDatabases.remove(dbQualifiedName);
         }
 
+        /**
+         * 删除该 table
+         *
+         * @param tblQualifiedName
+         */
         public void removeFromKnownTable(String tblQualifiedName) {
             if (tblQualifiedName != null) {
                 knownTables.remove(tblQualifiedName);

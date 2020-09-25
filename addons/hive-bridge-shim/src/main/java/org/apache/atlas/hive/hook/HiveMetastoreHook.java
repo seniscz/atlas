@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,20 +27,21 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Hive Metastore hook to capture DDL operations for atlas entity registration.
+ * MetaStoreEventListener 该类 在HMSHandler 初始化是被调用
  */
 public class HiveMetastoreHook extends MetaStoreEventListener {
-    private static final String ATLAS_PLUGIN_TYPE                        = "hive";
+    private static final String ATLAS_PLUGIN_TYPE = "hive";
     private static final String ATLAS_HIVE_METASTORE_HOOK_IMPL_CLASSNAME = "org.apache.atlas.hive.hook.HiveMetastoreHookImpl";
-    public  static final Logger LOG                                      = LoggerFactory.getLogger(HiveMetastoreHook.class);
+    public static final Logger LOG = LoggerFactory.getLogger(HiveMetastoreHook.class);
 
     private AtlasPluginClassLoader atlasPluginClassLoader = null;
     private MetaStoreEventListener atlasMetastoreHookImpl = null;
-    private Configuration          config;
+    private Configuration config;
 
     public HiveMetastoreHook(Configuration config) {
         super(config);
 
-        this.config   = config;
+        this.config = config;
 
         this.initialize();
     }
@@ -184,6 +185,7 @@ public class HiveMetastoreHook extends MetaStoreEventListener {
             LOG.debug("<== HiveMetastoreHook.onAlterDatabase()");
         }
     }
+
 
     private void activatePluginClassLoader() {
         if (atlasPluginClassLoader != null) {
